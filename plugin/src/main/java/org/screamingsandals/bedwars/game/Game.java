@@ -677,6 +677,11 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             return;
         }
 
+        if (isForcedSpectator(gamePlayer.player)) {
+            makeSpectator(gamePlayer, true);
+            return;
+        }
+
         boolean isEmpty = players.isEmpty();
         if (!players.contains(gamePlayer)) {
             players.add(gamePlayer);
@@ -775,6 +780,45 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
         BedwarsPlayerJoinedEvent joinedEvent = new BedwarsPlayerJoinedEvent(this, getPlayerTeam(gamePlayer), gamePlayer.player);
         Main.getInstance().getServer().getPluginManager().callEvent(joinedEvent);
+    }
+
+    private static boolean isForcedSpectator(Player player) {
+        List<?> spectators = Main.getConfigurator().config.getList("spectators");
+
+        if (spectators == null) {
+            return false;
+        }
+
+        UUID playerUuid = player.getUniqueId();
+
+        for (int i = 0; i < spectators.size(); i++) {
+            String spectator;
+            try {
+                spectator = (String) spectators.get(i);
+            } catch(Exception e) {
+                Debug.info("bad config expected String got: " + spectators.get(i).getClass().getName());
+                continue;
+            }
+            if (spectator == null) {
+                Debug.info(String.format("bad config: spectator %d is null", i));
+                continue;
+            }
+
+            UUID spectatorUuid;
+            try {
+                spectatorUuid = UUID.fromString(spectator);
+            } catch(Exception e) {
+                Debug.info(String.format("bad config: spectator %d (%s) not a UUID", i, spectator));
+                continue;
+            }
+
+            if (spectatorUuid.equals(playerUuid)) {
+                Debug.info(String.format("%s: is a forced spectator", playerUuid.toString()));
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void internalLeavePlayer(GamePlayer gamePlayer) {

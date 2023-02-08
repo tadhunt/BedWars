@@ -569,6 +569,8 @@ public class Configurator {
         checkOrSetConfig(modify, "party.autojoin-members", false);
         checkOrSetConfig(modify, "party.notify-when-warped", true);
 
+        checkOrSetConfig(modify, "spectators", null);
+
         checkOrSetConfig(modify, "version", 2);
 
         if (modify.get()) {
