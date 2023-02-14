@@ -100,6 +100,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     private int gameTime;
     private int minPlayers;
     private List<GamePlayer> players = new ArrayList<>();
+    private List<GamePlayer> spectators = new ArrayList<>();
     private World world;
     private List<GameStore> gameStore = new ArrayList<>();
     private ArenaTime arenaTime = ArenaTime.WORLD;
@@ -678,7 +679,9 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         }
 
         if (isForcedSpectator(gamePlayer.player)) {
-            makeSpectator(gamePlayer, true);
+            if (!spectators.contains(gamePlayer)) {
+                spectators.add(gamePlayer);
+            }
             return;
         }
 
@@ -846,6 +849,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             }
         }
 
+        spectators.remove(gamePlayer);
         players.remove(gamePlayer);
         updateSigns();
 
@@ -1951,6 +1955,9 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
                     String gameStartTitle = i18nonly("game_start_title");
                     String gameStartSubtitle = i18nonly("game_start_subtitle").replace("%arena%", this.name);
+                    for (GamePlayer gamePlayer : this.spectators) {
+                        players.add(gamePlayer);
+                    }
                     for (GamePlayer player : this.players) {
                         CurrentTeam team = getPlayerTeam(player);
                         player.player.getInventory().clear();
