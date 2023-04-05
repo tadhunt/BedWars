@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -12,8 +11,14 @@ import org.screamingsandals.bedwars.Main;
 
 public class TeamsConfig {
     private HashMap<UUID, TeamConfig> teams;
+    private HashMap<UUID, Boolean> spectators;
 
     public TeamsConfig() {
+        this.teamsInit();
+        this.spectatorsInit();
+    }
+
+    private void teamsInit() {
         this.teams = new HashMap<UUID, TeamConfig>();
 
         try {
@@ -45,8 +50,45 @@ public class TeamsConfig {
             Bukkit.getConsoleSender().sendMessage("bad config: " + e.toString());
         }
     }
+    private void spectatorsInit() {
+        this.spectators = new HashMap<UUID, Boolean>();
 
-    public TeamConfig UuidToTeam(UUID uuid) {
+        List<?> spectators = Main.getConfigurator().config.getList("spectators");
+    
+        if (spectators == null) {
+            return;
+        }
+    
+        for (int i = 0; i < spectators.size(); i++) {
+            String spectator;
+            try {
+                spectator = (String) spectators.get(i);
+            } catch(Exception e) {
+                Bukkit.getConsoleSender().sendMessage("bad config expected String got: " + spectators.get(i).getClass().getName());
+                continue;
+            }
+            if (spectator == null) {
+                Bukkit.getConsoleSender().sendMessage(String.format("bad config: spectator %d is null", i));
+                continue;
+            }
+    
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(spectator);
+            } catch(Exception e) {
+                Bukkit.getConsoleSender().sendMessage(String.format("bad config: spectator %d (%s) not a UUID", i, spectator));
+                continue;
+            }
+            
+            this.spectators.put(uuid, true);
+        }    
+    }    
+
+    public TeamConfig getTeam(UUID uuid) {
         return this.teams.get(uuid);
+    }
+
+    public Boolean isSpectator(UUID uuid) {
+        return this.spectators.containsKey(uuid);
     }
 }

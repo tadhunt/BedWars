@@ -102,6 +102,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     private int gameTime;
     private int minPlayers;
     private List<GamePlayer> players = new ArrayList<>();
+    private List<GamePlayer> spectators = new ArrayList<>();
     private World world;
     private List<GameStore> gameStore = new ArrayList<>();
     private ArenaTime arenaTime = ArenaTime.WORLD;
@@ -724,10 +725,20 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
         TeamsConfig teamsConfig = new TeamsConfig();
         UUID playerUuid = gamePlayer.player.getUniqueId();
-        TeamConfig teamConfig = teamsConfig.UuidToTeam(playerUuid);
+        Boolean isSpectator = teamsConfig.isSpectator(playerUuid);
+        TeamConfig teamConfig = teamsConfig.getTeam(playerUuid);
 
-        Bukkit.getConsoleSender().sendMessage("playerUuid: " + playerUuid.toString());
+        Bukkit.getConsoleSender().sendMessage(String.format("playerUuid %s isSpectator %s", playerUuid.toString(), isSpectator ? "true" : "false"));
 
+        if (isSpectator) {
+            makeSpectator(gamePlayer, true);
+
+            if (!spectators.contains(gamePlayer)) {
+                spectators.add(gamePlayer);
+            }
+
+            return;
+        }
         if(teamConfig == null) {
             String joinMode = Main.getConfigurator().config.getString("joinmode");
             Bukkit.getConsoleSender().sendMessage("joinmode: " + joinMode.toString());
@@ -875,6 +886,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         }
 
         players.remove(gamePlayer);
+        spectators.remove(gamePlayer);
         updateSigns();
 
         if (status == GameStatus.WAITING) {
@@ -1979,6 +1991,11 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
                     String gameStartTitle = i18nonly("game_start_title");
                     String gameStartSubtitle = i18nonly("game_start_subtitle").replace("%arena%", this.name);
+
+                    for (GamePlayer gamePlayer : this.spectators) {
+                        players.add(gamePlayer);
+                    }
+                    
                     for (GamePlayer player : this.players) {
                         CurrentTeam team = getPlayerTeam(player);
                         player.player.getInventory().clear();

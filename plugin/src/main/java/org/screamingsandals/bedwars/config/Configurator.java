@@ -581,6 +581,7 @@ public class Configurator {
 
         checkOrSetConfig(modify, "joinmode", "random");
         checkOrSetConfig(modify, "teams", new HashMap<String, Object>());
+        checkOrSetConfig(modify, "spectators", null);
 
         Bukkit.getConsoleSender().sendMessage("configurating...");
 
