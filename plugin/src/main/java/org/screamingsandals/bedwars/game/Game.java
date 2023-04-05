@@ -80,8 +80,6 @@ import org.screamingsandals.bedwars.lib.debug.Debug;
 import org.screamingsandals.bedwars.lib.nms.entity.EntityUtils;
 import org.screamingsandals.bedwars.lib.nms.holograms.Hologram;
 import org.screamingsandals.bedwars.lib.signmanager.SignBlock;
-import org.screamingsandals.bedwars.config.TeamConfig;
-import org.screamingsandals.bedwars.config.TeamsConfig;
 import org.screamingsandals.simpleinventories.utils.MaterialSearchEngine;
 import org.screamingsandals.simpleinventories.utils.StackParser;
 
@@ -103,6 +101,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     private int minPlayers;
     private List<GamePlayer> players = new ArrayList<>();
     private List<GamePlayer> spectators = new ArrayList<>();
+    private HashMap<UUID, Boolean> forcedSpectators;
     private World world;
     private List<GameStore> gameStore = new ArrayList<>();
     private ArenaTime arenaTime = ArenaTime.WORLD;
@@ -112,6 +111,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     private BarColor gameBossBarColor = null;
     private String gameBossBarColorName = null;
     private String customPrefix = null;
+    private String joinmode = "random";
 
     // Boolean settings
     public static final String COMPASS_ENABLED = "compass-enabled";
@@ -723,41 +723,48 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             return;
         }
 
-        TeamsConfig teamsConfig = new TeamsConfig();
         UUID playerUuid = gamePlayer.player.getUniqueId();
-        Boolean isSpectator = teamsConfig.isSpectator(playerUuid);
-        TeamConfig teamConfig = teamsConfig.getTeam(playerUuid);
 
-        Bukkit.getConsoleSender().sendMessage(String.format("playerUuid %s isSpectator %s", playerUuid.toString(), isSpectator ? "true" : "false"));
+        Bukkit.getConsoleSender().sendMessage("playerUuid " + playerUuid.toString());
 
-        if (isSpectator) {
+        if (forcedSpectators.containsKey(playerUuid)) {
             makeSpectator(gamePlayer, true);
 
             if (!spectators.contains(gamePlayer)) {
                 spectators.add(gamePlayer);
             }
 
+            Bukkit.getConsoleSender().sendMessage("player is a forced spectator");
+
             return;
         }
-        if(teamConfig == null) {
-            String joinMode = Main.getConfigurator().config.getString("joinmode");
-            Bukkit.getConsoleSender().sendMessage("joinmode: " + joinMode.toString());
 
-            switch (joinMode) {
+        Team joinTeam = findTeamToJoin(playerUuid);
+
+        if(joinTeam == null) {
+            Bukkit.getConsoleSender().sendMessage("no team, so fallback to joinmode: " + joinmode.toString());
+
+            switch (joinmode) {
                 default:
-                    Bukkit.getConsoleSender().sendMessage("unhandled joinMode: " + joinMode);
+                    Bukkit.getConsoleSender().sendMessage("unhandled joinMode: " + joinmode);
                     break;
                 case "random":
-                    Bukkit.getConsoleSender().sendMessage("player will be assigned a random team");
                     break;
                 case "pick":
-                    Bukkit.getConsoleSender().sendMessage("player must pick a team");
                     break;
-                case "spectator":
-                    Bukkit.getConsoleSender().sendMessage("player will be a spectator");
+                case "spectator":                
+                    makeSpectator(gamePlayer, true);
+
+                    if (!spectators.contains(gamePlayer)) {
+                        spectators.add(gamePlayer);
+                    }
+
+                    Bukkit.getConsoleSender().sendMessage("made player a spectator");
+
+                    return;
             }
         } else {
-            Bukkit.getConsoleSender().sendMessage("Player is assigned to team " + teamConfig.name);
+            Bukkit.getConsoleSender().sendMessage("Player is assigned to team " + joinTeam.name);
         }
 
         boolean isEmpty = players.isEmpty();
@@ -990,6 +997,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     }
 
     public static Game loadGame(File file, boolean firstAttempt) {
+        Bukkit.getConsoleSender().sendMessage("................ loading game from " + file.getName());
         try {
             if (!file.exists()) {
                 return null;
@@ -1008,6 +1016,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             game.name = configMap.getString("name");
             game.pauseCountdown = configMap.getInt("pauseCountdown");
             game.gameTime = configMap.getInt("gameTime");
+            game.joinmode = configMap.getString("joinmode");
 
             String worldName = configMap.getString("world");
             game.world = Bukkit.getWorld(worldName);
@@ -1078,6 +1087,11 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             }
             game.lobbySpawn = MiscUtils.readLocationFromString(lobbySpawnWorld, configMap.getString("lobbySpawn"));
             game.minPlayers = configMap.getInt("minPlayers", 2);
+
+            if (configMap.isSet("spectators")) {
+                game.forcedSpectators = forcedSpectatorsInit(configMap);
+            }
+
             if (configMap.isSet("teams")) {
                 for (String teamN : configMap.getConfigurationSection("teams").getKeys(false)) {
                     ConfigurationSection team = configMap.getConfigurationSection("teams").getConfigurationSection(teamN);
@@ -1089,6 +1103,16 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     t.maxPlayers = team.getInt("maxPlayers");
                     t.spawn = MiscUtils.readLocationFromString(game.world, team.getString("spawn"));
                     t.game = game;
+
+                    t.members = new HashMap<UUID, Boolean>();
+                    List<String> members = (List<String>) team.getList("members");
+                    if (members != null) {
+                        for(int i = 0; i < members.size(); i++) {
+                            String s = members.get(i);
+                            UUID uuid = UUID.fromString(s);
+                            t.members.put(uuid, true);
+                        }
+                    }
 
                     t.newColor = true;
                     game.teams.add(t);
@@ -1189,6 +1213,52 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             throwable.printStackTrace();
             return null;
         }
+    }
+
+    private static HashMap<UUID, Boolean> forcedSpectatorsInit(FileConfiguration c) {
+        HashMap<UUID, Boolean> spectators = new HashMap<UUID, Boolean>();
+
+        List<?> strs = c.getList("spectators");
+    
+        if (strs == null) {
+            return spectators;
+        }
+    
+        for (int i = 0; i < strs.size(); i++) {
+            String spectator;
+            try {
+                spectator = (String) strs.get(i);
+            } catch(Exception e) {
+                Bukkit.getConsoleSender().sendMessage("bad config expected String got: " + spectators.get(i).getClass().getName());
+                continue;
+            }
+            if (spectator == null) {
+                Bukkit.getConsoleSender().sendMessage(String.format("bad config: spectator %d is null", i));
+                continue;
+            }
+    
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(spectator);
+            } catch(Exception e) {
+                Bukkit.getConsoleSender().sendMessage(String.format("bad config: spectator %d (%s) not a UUID", i, spectator));
+                continue;
+            }
+            
+            spectators.put(uuid, true);
+        }
+        
+        return spectators;
+    }    
+
+    private Team findTeamToJoin(UUID uuid) {
+        for (Team t : teams) {
+            if (t.members.containsKey(uuid)) {
+                return t;
+            }
+        }
+
+        return null;
     }
 
     public static WeatherType loadWeather(String weather) {
@@ -1995,7 +2065,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     for (GamePlayer gamePlayer : this.spectators) {
                         players.add(gamePlayer);
                     }
-                    
+
                     for (GamePlayer player : this.players) {
                         CurrentTeam team = getPlayerTeam(player);
                         player.player.getInventory().clear();
