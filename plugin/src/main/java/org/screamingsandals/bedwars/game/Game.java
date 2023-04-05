@@ -80,6 +80,8 @@ import org.screamingsandals.bedwars.lib.debug.Debug;
 import org.screamingsandals.bedwars.lib.nms.entity.EntityUtils;
 import org.screamingsandals.bedwars.lib.nms.holograms.Hologram;
 import org.screamingsandals.bedwars.lib.signmanager.SignBlock;
+import org.screamingsandals.bedwars.config.TeamConfig;
+import org.screamingsandals.bedwars.config.TeamsConfig;
 import org.screamingsandals.simpleinventories.utils.MaterialSearchEngine;
 import org.screamingsandals.simpleinventories.utils.StackParser;
 
@@ -706,6 +708,8 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     }
 
     public void internalJoinPlayer(GamePlayer gamePlayer) {
+        Bukkit.getConsoleSender().sendMessage("internalJoinPlayer is running");
+        
         BedwarsPlayerJoinEvent joinEvent = new BedwarsPlayerJoinEvent(this, gamePlayer.player);
         Main.getInstance().getServer().getPluginManager().callEvent(joinEvent);
 
@@ -716,6 +720,33 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             }
             gamePlayer.changeGame(null);
             return;
+        }
+
+        TeamsConfig teamsConfig = new TeamsConfig();
+        UUID playerUuid = gamePlayer.player.getUniqueId();
+        TeamConfig teamConfig = teamsConfig.UuidToTeam(playerUuid);
+
+        Bukkit.getConsoleSender().sendMessage("playerUuid: " + playerUuid.toString());
+
+        if(teamConfig == null) {
+            String joinMode = Main.getConfigurator().config.getString("joinmode");
+            Bukkit.getConsoleSender().sendMessage("joinmode: " + joinMode.toString());
+
+            switch (joinMode) {
+                default:
+                    Bukkit.getConsoleSender().sendMessage("unhandled joinMode: " + joinMode);
+                    break;
+                case "random":
+                    Bukkit.getConsoleSender().sendMessage("player will be assigned a random team");
+                    break;
+                case "pick":
+                    Bukkit.getConsoleSender().sendMessage("player must pick a team");
+                    break;
+                case "spectator":
+                    Bukkit.getConsoleSender().sendMessage("player will be a spectator");
+            }
+        } else {
+            Bukkit.getConsoleSender().sendMessage("Player is assigned to team " + teamConfig.name);
         }
 
         boolean isEmpty = players.isEmpty();
