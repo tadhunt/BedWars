@@ -100,8 +100,6 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     private int gameTime;
     private int minPlayers;
     private List<GamePlayer> players = new ArrayList<>();
-    private List<GamePlayer> spectators = new ArrayList<>();
-    private HashMap<UUID, Boolean> forcedSpectators;
     private World world;
     private List<GameStore> gameStore = new ArrayList<>();
     private ArenaTime arenaTime = ArenaTime.WORLD;
@@ -111,7 +109,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     private BarColor gameBossBarColor = null;
     private String gameBossBarColorName = null;
     private String customPrefix = null;
+
     private String joinmode = "random";
+    private List<GamePlayer> spectators = new ArrayList<>();
+    private HashMap<UUID, Boolean> forcedSpectators;
 
     // Boolean settings
     public static final String COMPASS_ENABLED = "compass-enabled";
@@ -739,32 +740,17 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             return;
         }
 
-        Team joinTeam = findTeamToJoin(playerUuid);
+        Team assignedTeam = findAssignedTeam(playerUuid);
 
-        if(joinTeam == null) {
-            Bukkit.getConsoleSender().sendMessage("no team, so fallback to joinmode: " + joinmode.toString());
+        if(assignedTeam == null && joinmode == "spectator") {
+            makeSpectator(gamePlayer, true);
 
-            switch (joinmode) {
-                default:
-                    Bukkit.getConsoleSender().sendMessage("unhandled joinMode: " + joinmode);
-                    break;
-                case "random":
-                    break;
-                case "pick":
-                    break;
-                case "spectator":                
-                    makeSpectator(gamePlayer, true);
-
-                    if (!spectators.contains(gamePlayer)) {
-                        spectators.add(gamePlayer);
-                    }
-
-                    Bukkit.getConsoleSender().sendMessage("made player a spectator");
-
-                    return;
+            if (!spectators.contains(gamePlayer)) {
+                spectators.add(gamePlayer);
             }
-        } else {
-            Bukkit.getConsoleSender().sendMessage("Player is assigned to team " + joinTeam.name);
+
+            Bukkit.getConsoleSender().sendMessage(String.format("player %s: is a spectator", gamePlayer.player.getName()));
+            return;
         }
 
         boolean isEmpty = players.isEmpty();
@@ -805,8 +791,18 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                 gamePlayer.invClean(); // temp fix for inventory issues?
                 SpawnEffects.spawnEffect(Game.this, gamePlayer.player, "game-effects.lobbyjoin");
 
-                if (getOriginalOrInheritedJoinRandomTeamOnJoin()) {
+                if (assignedTeam != null) {
+                    joinAssignedTeam(gamePlayer, assignedTeam);
+                } else if (joinmode == "random") {
                     joinRandomTeam(gamePlayer);
+                } else if (joinmode == "pick") {
+                    Bukkit.getConsoleSender().sendMessage(String.format("player %s: wait for player to pick a team", gamePlayer.player.getName()));
+                } else {
+                    Bukkit.getConsoleSender().sendMessage(String.format("player %s: unhandled joinmode %s: respect legacy config", gamePlayer.player.getName(), joinmode));
+                    
+                    if (getOriginalOrInheritedJoinRandomTeamOnJoin()) {
+                        joinRandomTeam(gamePlayer);
+                    }
                 }
 
                 if (getOriginalOrInheritedCompassEnabled()) {
@@ -997,7 +993,6 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     }
 
     public static Game loadGame(File file, boolean firstAttempt) {
-        Bukkit.getConsoleSender().sendMessage("................ loading game from " + file.getName());
         try {
             if (!file.exists()) {
                 return null;
@@ -1251,7 +1246,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         return spectators;
     }    
 
-    private Team findTeamToJoin(UUID uuid) {
+    private Team findAssignedTeam(UUID uuid) {
         for (Team t : teams) {
             if (t.members.containsKey(uuid)) {
                 return t;
@@ -1729,6 +1724,15 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         }
 
         internalTeamJoin(player, teamForJoin, ignoreTeamSize, addCosmetics);
+
+        Bukkit.getConsoleSender().sendMessage(String.format("player %s: joined random team %s", player.player.getName(), teamForJoin.name));
+
+    }
+
+    public void joinAssignedTeam(GamePlayer gamePlayer, Team assignedTeam) {
+        internalTeamJoin(gamePlayer, assignedTeam, true, true);
+
+        Bukkit.getConsoleSender().sendMessage(String.format("Player %s: joined assigned team %s" , gamePlayer.player.getName(), assignedTeam.name));
     }
 
     public Location makeSpectator(GamePlayer gamePlayer, boolean leaveItem) {
