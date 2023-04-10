@@ -742,13 +742,14 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
         Team assignedTeam = findAssignedTeam(playerUuid);
 
-        if(assignedTeam == null && joinmode == "spectator") {
+        if (assignedTeam == null && joinmode.equals("spectator")) {
             makeSpectator(gamePlayer, true);
 
             if (!spectators.contains(gamePlayer)) {
                 spectators.add(gamePlayer);
             }
 
+            gamePlayer.player.sendMessage("You are a spectator.  The game will start shortly.");
             Bukkit.getConsoleSender().sendMessage(String.format("player %s: is a spectator", gamePlayer.player.getName()));
             return;
         }
@@ -793,9 +794,9 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
                 if (assignedTeam != null) {
                     joinAssignedTeam(gamePlayer, assignedTeam);
-                } else if (joinmode == "random") {
+                } else if (joinmode.equals("random")) {
                     joinRandomTeam(gamePlayer);
-                } else if (joinmode == "pick") {
+                } else if (joinmode.equals("pick")) {
                     Bukkit.getConsoleSender().sendMessage(String.format("player %s: wait for player to pick a team", gamePlayer.player.getName()));
                 } else {
                     Bukkit.getConsoleSender().sendMessage(String.format("player %s: unhandled joinmode %s: respect legacy config", gamePlayer.player.getName(), joinmode));
