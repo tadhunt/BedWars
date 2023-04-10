@@ -726,31 +726,17 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
         UUID playerUuid = gamePlayer.player.getUniqueId();
 
-        Bukkit.getConsoleSender().sendMessage("playerUuid " + playerUuid.toString());
+        // Bukkit.getConsoleSender().sendMessage("playerUuid " + playerUuid.toString());
 
         if (forcedSpectators.containsKey(playerUuid)) {
-            makeSpectator(gamePlayer, true);
-
-            if (!spectators.contains(gamePlayer)) {
-                spectators.add(gamePlayer);
-            }
-
-            Bukkit.getConsoleSender().sendMessage("player is a forced spectator");
-
+            joinAsSpectator(gamePlayer);
             return;
         }
 
         Team assignedTeam = findAssignedTeam(playerUuid);
 
         if (assignedTeam == null && joinmode.equals("spectator")) {
-            makeSpectator(gamePlayer, true);
-
-            if (!spectators.contains(gamePlayer)) {
-                spectators.add(gamePlayer);
-            }
-
-            gamePlayer.player.sendMessage("You are a spectator.  The game will start shortly.");
-            Bukkit.getConsoleSender().sendMessage(String.format("player %s: is a spectator", gamePlayer.player.getName()));
+            joinAsSpectator(gamePlayer);
             return;
         }
 
@@ -1255,6 +1241,20 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         }
 
         return null;
+    }
+
+    private void joinAsSpectator(GamePlayer gamePlayer) {
+        makeSpectator(gamePlayer, true);
+
+        if (!spectators.contains(gamePlayer)) {
+            spectators.add(gamePlayer);
+        }
+
+        gamePlayer.player.sendMessage("You are a spectator.  The game will start shortly.");
+        Bukkit.getConsoleSender().sendMessage(String.format("player %s: is a spectator", gamePlayer.player.getName()));
+
+        return;
+
     }
 
     public static WeatherType loadWeather(String weather) {
