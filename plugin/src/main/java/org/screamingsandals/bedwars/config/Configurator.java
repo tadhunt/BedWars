@@ -20,6 +20,8 @@
 package org.screamingsandals.bedwars.config;
 
 import org.screamingsandals.bedwars.Main;
+import org.screamingsandals.bedwars.lib.debug.Debug;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Material;
@@ -587,6 +589,10 @@ public class Configurator {
         checkOrSetConfig(modify, "party.notify-when-warped", true);
 
         checkOrSetConfig(modify, "version", 2);
+
+        checkOrSetConfig(modify, "joinmode", "random");
+
+        Bukkit.getConsoleSender().sendMessage("configurating...");
 
         if (modify.get()) {
             try {

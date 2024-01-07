@@ -20,6 +20,10 @@
 package org.screamingsandals.bedwars.game;
 
 import org.screamingsandals.bedwars.api.game.Game;
+
+import java.util.HashMap;
+import java.util.UUID;
+
 import org.bukkit.Location;
 
 public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
@@ -30,6 +34,7 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
     public Location spawn;
     public int maxPlayers;
     public Game game;
+    public HashMap<UUID, Boolean> members;
 
     public Team clone() {
         Team t = new Team();
@@ -40,6 +45,14 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
         t.spawn = this.spawn;
         t.maxPlayers = this.maxPlayers;
         t.game = this.game;
+
+        if (this.members != null) {
+            t.members = new HashMap<UUID, Boolean>();
+            for (UUID member : t.members.keySet()) {
+                t.members.put(member, true);
+            }
+        }
+
         return t;
     }
 
@@ -76,5 +89,13 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
     @Override
     public Game getGame() {
         return game;
+    }
+
+    public Boolean isMember(UUID uuid) {
+        if (members == null) {
+            return false;
+        }
+
+        return members.containsKey(uuid);
     }
 }
