@@ -33,3 +33,6 @@ gradle-app.setting
 .gradletasknamecache
 
 *.hprof
+
+# Visual Studio Code
+.vscode/
