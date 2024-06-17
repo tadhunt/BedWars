@@ -179,13 +179,19 @@ public class Configurator {
         checkOrSetConfig(modify, "bungee.server", "hub");
         checkOrSetConfig(modify, "bungee.auto-game-connect", false);
         checkOrSetConfig(modify, "bungee.kick-when-proxy-too-slow", true);
-        checkOrSetConfig(modify, "bungee.select-random-game", true);
+        checkOrSetConfig(modify, "bungee.random-game-selection.enabled", config.getBoolean("bungee.select-random-game", true));
+        checkOrSetConfig(modify, "bungee.random-game-selection.preselect-games", false);
         checkOrSetConfig(modify, "bungee.motd.enabled", false);
         checkOrSetConfig(modify, "bungee.motd.waiting", "%name%: Waiting for players [%current%/%max%]");
         checkOrSetConfig(modify, "bungee.motd.waiting_full", "%name%: Game is full [%current%/%max%]");
         checkOrSetConfig(modify, "bungee.motd.running", "%name%: Game is running [%current%/%max%]");
         checkOrSetConfig(modify, "bungee.motd.rebuilding", "%name%: Rebuilding...");
         checkOrSetConfig(modify, "bungee.motd.disabled", "%name%: Game is disabled");
+
+        if (config.isSet("bungee.select-random-game")) {
+            modify.set(true);
+            config.set("bungee.select-random-game", null);
+        }
 
         checkOrSetConfig(modify, "farmBlocks.enable", false);
         checkOrSetConfig(modify, "farmBlocks.blocks", new ArrayList<>());
@@ -210,6 +216,7 @@ public class Configurator {
         checkOrSetConfig(modify, "shop.items-on-row", 9);
         checkOrSetConfig(modify, "shop.show-page-numbers", true);
         checkOrSetConfig(modify, "shop.inventory-type", "CHEST");
+        checkOrSetConfig(modify, "shop.allow-execution-of-console-commands", true);
         checkOrSetConfig(modify, "shop.citizens-enabled", false);
         
         checkOrSetConfig(modify, "items.jointeam", "COMPASS");
@@ -437,9 +444,29 @@ public class Configurator {
         checkOrSetConfig(modify, "database.user", "root");
         checkOrSetConfig(modify, "database.password", "secret");
         checkOrSetConfig(modify, "database.table-prefix", "bw_");
-        checkOrSetConfig(modify, "database.add-timezone-to-connection-string", true);
-        checkOrSetConfig(modify, "database.timezone-id", TimeZone.getDefault().getID());
-        checkOrSetConfig(modify, "database.useSSL", false);
+        checkOrSetConfig(modify, "database.type", "mysql");
+        checkOrSetConfig(modify, "database.driver", "default");
+        if (!config.isSet("database.params")) {
+            checkOrSetConfig(modify, "database.params", new HashMap<>());
+            checkOrSetConfig(modify, "database.params.useSSL", config.getBoolean("database.useSSL", false));
+            if (config.getBoolean("database.add-timezone-to-connection-string", true)) {
+                checkOrSetConfig(modify, "database.params.serverTimezone", config.getString("database.timezone-id", TimeZone.getDefault().getID()));
+            }
+            checkOrSetConfig(modify, "database.params.autoReconnect", true);
+            checkOrSetConfig(modify, "database.params.cachePrepStmts", true);
+            checkOrSetConfig(modify, "database.params.prepStmtCacheSize", 250);
+            checkOrSetConfig(modify, "database.params.prepStmtCacheSqlLimit", 2048);
+
+            if (config.isSet("database.useSSL")) {
+                config.set("database.useSSL", null);
+            }
+            if (config.isSet("database.add-timezone-to-connection-string")) {
+                config.set("database.add-timezone-to-connection-string", null);
+            }
+            if (config.isSet("database.timezone-id")) {
+                config.set("database.timezone-id", null);
+            }
+        }
 
         checkOrSetConfig(modify, "bossbar.use-xp-bar", false);
         checkOrSetConfig(modify, "bossbar.lobby.enable", true);
@@ -548,7 +575,7 @@ public class Configurator {
         checkOrSetConfig(modify, "removeUpgradeMessages", config.getBoolean("removePurchaseMessages"));
         checkOrSetConfig(modify, "disableCakeEating", true);
         checkOrSetConfig(modify, "disableDragonEggTeleport", true);
-        checkOrSetConfig(modify, "preventArenaFromGriefing", false);
+        checkOrSetConfig(modify, "preventArenaFromGriefing", true);
 
         checkOrSetConfig(modify, "update-checker.zero.console", true);
         checkOrSetConfig(modify, "update-checker.zero.admins", true);

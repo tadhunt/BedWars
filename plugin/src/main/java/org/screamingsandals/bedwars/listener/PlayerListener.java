@@ -92,7 +92,7 @@ public class PlayerListener implements Listener {
                 if (Main.getConfigurator().config.getBoolean("chat.send-death-messages-just-in-game")) {
                     String deathMessage = event.getDeathMessage();
                     if (Main.getConfigurator().config.getBoolean("chat.send-custom-death-messages")) {
-                        if (event.getEntity().getKiller() != null) {
+                        if (event.getEntity().getKiller() != null && game.isPlayerInAnyTeam(event.getEntity().getKiller())) {
                             Player killer = event.getEntity().getKiller();
                             GamePlayer gKiller = Main.getPlayerGameProfile(killer);
                             CurrentTeam killerTeam = game.getPlayerTeam(gKiller);
@@ -297,9 +297,14 @@ public class PlayerListener implements Listener {
             new BukkitRunnable() {
                 public void run() {
                     try {
-                        Game game;
-                        if (Main.getConfigurator().config.getBoolean("bungee.select-random-game")) {
-                            game = (Game) Main.getInstance().getRandomWaitingGameForBungeeMode();
+                        Game game = null;
+                        if (Main.getConfigurator().config.getBoolean("bungee.random-game-selection.enabled")) {
+                            if (Main.getInstance().isPreSelectGames()) {
+                                game = Main.getInstance().getSelectedGame();
+                            }
+                            if (game == null) {
+                                game = (Game) Main.getInstance().getRandomWaitingGameForBungeeMode();
+                            }
                         } else {
                             game = (Game) Main.getInstance().getFirstWaitingGame();
                         }
@@ -686,7 +691,7 @@ public class PlayerListener implements Listener {
 
                 if (Main.getConfigurator().config.getBoolean("allow-fake-death") && !event.isCancelled() && (player.getHealth() - event.getFinalDamage()) <= 0) {
                     event.setCancelled(true);
-                    FakeDeath.die(gPlayer);
+                    FakeDeath.die(gPlayer, event);
                 }
             }
         }
@@ -889,7 +894,19 @@ public class PlayerListener implements Listener {
                                                 originalState.update(true, false);
                                             } else {
                                                 if (player.getGameMode() != GameMode.CREATIVE) {
-                                                    stack.setAmount(stack.getAmount() - 1);
+                                                    if (stack.getAmount() > 1) {
+                                                        stack.setAmount(stack.getAmount() - 1);
+                                                    } else {
+                                                        try {
+                                                            if (player.getInventory().getItemInOffHand().equals(stack)) {
+                                                                player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
+                                                            } else {
+                                                                player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                                                            }
+                                                        } catch (Throwable e) {
+                                                            player.getInventory().setItemInHand(new ItemStack(Material.AIR));
+                                                        }
+                                                    }
                                                 }
                                                 if (!player.isSneaking()) {
                                                     // TODO get right block place sound
@@ -1201,6 +1218,23 @@ public class PlayerListener implements Listener {
             for (String gameN : Main.getGameNames()) {
                 Game game = Main.getGame(gameN);
                 if (game.getStatus() != GameStatus.DISABLED && GameCreator.isInArea(event.getBlockClicked().getLocation(), game.getPos1(), game.getPos2())) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onItemMerge(ItemMergeEvent event) {
+        if (event.isCancelled()) {
+            return;
+        }
+
+        for (String s : Main.getGameNames()) {
+            Game game = Main.getGame(s);
+            if (game.getStatus() == GameStatus.RUNNING && game.getOriginalOrInheritedSpawnerDisableMerge()) {
+                if (GameCreator.isInArea(event.getEntity().getLocation(), game.getPos1(), game.getPos2()) || GameCreator.isInArea(event.getTarget().getLocation(), game.getPos1(), game.getPos2())) {
                     event.setCancelled(true);
                     return;
                 }

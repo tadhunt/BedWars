@@ -2262,7 +2262,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                             for (CurrentTeam t : teamsInGame) {
                                 if (t.isAlive()) {
                                     winner = t;
-                                    String time = getFormattedTimeLeft(gameTime - countdown);
+                                    String time = getFormattedTimeLeftS(gameTime - countdown);
                                     String message = i18nc("team_win", customPrefix)
                                             .replace("%team%", TeamColor.fromApiColor(t.getColor()).chatColor + t.getName())
                                             .replace("%time%", time);
@@ -2486,6 +2486,8 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
             }
 
             if (isBungeeEnabled()) {
+                Main.getInstance().reselectGame();
+
                 preServerRestart = true;
 
                 if (!getConnectedPlayers().isEmpty()) {
@@ -2503,6 +2505,8 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                                     .dispatchCommand(Main.getInstance().getServer().getConsoleSender(), "restart");
                         } else if (Main.getConfigurator().config.getBoolean("bungee.serverStop")) {
                             Bukkit.shutdown();
+                        } else {
+                            preServerRestart = false;
                         }
                     }
 
@@ -2751,10 +2755,17 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     }
 
     public String getFormattedTimeLeft() {
-        return getFormattedTimeLeft(this.countdown);
+        return getFormattedTimeLeftS(this.countdown);
     }
 
+    /**
+     * This method exists to maintain binary compatibility with SBA
+     */
     public String getFormattedTimeLeft(int countdown) {
+        return getFormattedTimeLeftS(countdown);
+    }
+
+    public static String getFormattedTimeLeftS(int countdown) {
         int min;
         int sec;
         String minStr;
@@ -3815,5 +3826,9 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
     public void setCustomPrefix(String customPrefix) {
         this.customPrefix = customPrefix;
+    }
+
+    public int getCountdown() {
+        return countdown;
     }
 }
