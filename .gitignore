@@ -36,3 +36,7 @@ gradle-app.setting
 
 # Visual Studio Code
 .vscode/
+
+api/bin
+nms/bin
+plugin/bin
