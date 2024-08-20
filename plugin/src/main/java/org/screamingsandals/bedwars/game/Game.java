@@ -699,7 +699,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                         }
 
                         dispatchRewardCommands("player-destroy-bed", broker,
-                                Main.getConfigurator().config.getInt("statistics.scores.bed-destroy", 25));
+                                Main.getConfigurator().config.getInt("statistics.scores.bed-destroy", 25), (CurrentTeam) getTeamOfPlayer(broker), null, null);
                     }
                 }
             }
@@ -921,6 +921,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     updateScoreboard();
                 }
             }
+
+            if (status == GameStatus.RUNNING) {
+                Game.this.dispatchRewardCommands("player-early-leave", gamePlayer.player, 0, team, gamePlayer.isSpectator, null);
+            }
         }
 
         if (Main.isPlayerStatisticsEnabled()) {
@@ -1071,7 +1075,8 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     Team t = new Team();
                     t.newColor = team.getBoolean("isNewColor", false);
                     t.color = TeamColor.valueOf(MiscUtils.convertColorToNewFormat(team.getString("color"), t));
-                    t.name = teamN;
+                    t.name = team.getString("actualName", teamN);
+                    t.saveName = teamN;
                     t.bed = MiscUtils.readLocationFromString(game.world, team.getString("bed"));
                     t.maxPlayers = team.getInt("maxPlayers");
                     t.spawn = MiscUtils.readLocationFromString(game.world, team.getString("spawn"));
@@ -1317,11 +1322,13 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         configMap.set("customPrefix", customPrefix);
         if (!teams.isEmpty()) {
             for (Team t : teams) {
-                configMap.set("teams." + t.name + ".isNewColor", t.isNewColor());
-                configMap.set("teams." + t.name + ".color", t.color.name());
-                configMap.set("teams." + t.name + ".maxPlayers", t.maxPlayers);
-                configMap.set("teams." + t.name + ".bed", MiscUtils.setLocationToString(t.bed));
-                configMap.set("teams." + t.name + ".spawn", MiscUtils.setLocationToString(t.spawn));
+                String name = t.getSaveName();
+                configMap.set("teams." + name + ".isNewColor", t.isNewColor());
+                configMap.set("teams." + name + ".color", t.color.name());
+                configMap.set("teams." + name + ".maxPlayers", t.maxPlayers);
+                configMap.set("teams." + name + ".bed", MiscUtils.setLocationToString(t.bed));
+                configMap.set("teams." + name + ".spawn", MiscUtils.setLocationToString(t.spawn));
+                configMap.set("teams." + name + ".actualName", t.name);
             }
         }
         List<Map<String, Object>> nS = new ArrayList<>();
@@ -2116,6 +2123,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                                         Main.getConfigurator().config.getString("sounds.game_start.sound"),
                                         Sounds.ENTITY_PLAYER_LEVELUP, (float) Main.getConfigurator().config.getDouble("sounds.game_start.volume"), (float) Main.getConfigurator().config.getDouble("sounds.game_start.pitch"));
                             });
+                            team.teamMembers.add(new CurrentTeam.Member(player.player.getUniqueId(), player.player.getName()));
                         }
                     }
 
@@ -2234,6 +2242,11 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     Main.getInstance().getServer().getPluginManager().callEvent(startedEvent);
                     Main.getInstance().getServer().getPluginManager().callEvent(statusE);
                     updateScoreboard();
+
+                    for (GamePlayer player : players) {
+                        Game.this.dispatchRewardCommands("player-game-start", player.player, 0, getPlayerTeam(player), null, null);
+                    }
+                    Game.this.dispatchRewardCommands("game-start", null, 0);
                 }
             }
             // Phase 6.2: If status is same as before
@@ -2304,9 +2317,9 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                                                     PlayerStatistic statistic = Main.getPlayerStatisticsManager()
                                                             .getStatistic(player.player);
                                                     Game.this.dispatchRewardCommands("player-win-run-immediately", player.player,
-                                                            statistic.getScore());
+                                                            statistic.getScore(), t, null, null);
                                                 } else {
-                                                    Game.this.dispatchRewardCommands("player-win-run-immediately", player.player, 0);
+                                                    Game.this.dispatchRewardCommands("player-win-run-immediately", player.player, 0, t, null, null);
                                                 }
 
                                                 final Player pl = player.player;
@@ -2318,9 +2331,9 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                                                             PlayerStatistic statistic = Main.getPlayerStatisticsManager()
                                                                     .getStatistic(player.player);
                                                             Game.this.dispatchRewardCommands("player-win", pl,
-                                                                    statistic.getScore());
+                                                                    statistic.getScore(), t, null, null);
                                                         } else {
-                                                            Game.this.dispatchRewardCommands("player-win", pl, 0);
+                                                            Game.this.dispatchRewardCommands("player-win", pl, 0, t, null, null);
                                                         }
                                                     }
 
@@ -2334,6 +2347,12 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                                             }
                                         }
                                     }
+
+                                    Game.this.dispatchRewardCommands("team-win", null, 0, t, null, null);
+                                    for (CurrentTeam.Member member : t.teamMembers) {
+                                        Game.this.dispatchRewardCommands("player-team-win", null, 0, t, t.getConnectedPlayers().stream().anyMatch(p -> p.getUniqueId().equals(member.getUuid())), member);
+                                    }
+
                                     break;
                                 }
                             }
@@ -2907,6 +2926,11 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         finalStr = finalStr.replace("%players%", String.valueOf(players.size()));
         finalStr = finalStr.replace("%maxplayers%", String.valueOf(calculatedMaxPlayers));
         finalStr = finalStr.replace("%countdown%", String.valueOf(countdown));
+        finalStr = finalStr.replace("%countdownwaiting%",
+                players.size() >= getMinPlayers() && (teamsInGame.size() > 1 || (getOriginalOrInheritedJoinRandomTeamAfterLobby() && countRespawnable() < players.size()))
+                        ? String.valueOf(countdown)
+                        : i18nonly("waiting_placeholder_lobby_scoreboard")
+        );
 
         return finalStr;
     }
@@ -3525,14 +3549,36 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
     }
 
     public void dispatchRewardCommands(String type, Player player, int score) {
+        dispatchRewardCommands(type, player, score, null, null, null);
+    }
+
+    public void dispatchRewardCommands(String type, Player player, int score, CurrentTeam team, Boolean deathStatus, CurrentTeam.Member member) {
         if (!Main.getConfigurator().config.getBoolean("rewards.enabled")) {
             return;
         }
 
         List<String> list = Main.getConfigurator().config.getStringList("rewards." + type);
         for (String command : list) {
-            command = command.replace("{player}", player.getName());
+            if (command.startsWith("/example ")) {
+                continue; // Skip example commands
+            }
+
+            if (player != null) {
+                command = command.replace("{player}", player.getName());
+                command = command.replace("{playerUuid}", player.getUniqueId().toString());
+            }
+            if (member != null) {
+                command = command.replace("{player}", member.getName());
+                command = command.replace("{playerUuid}", member.getUuid().toString());
+            }
+            command = command.replace("{game}", name);
             command = command.replace("{score}", Integer.toString(score));
+            if (team != null) {
+                command = command.replace("{team}", team.teamInfo.name);
+            }
+            if (deathStatus != null) {
+                command = command.replace("{death}", deathStatus ? "true" : "false");
+            }
             command = command.startsWith("/") ? command.substring(1) : command;
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
         }

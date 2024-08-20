@@ -19,6 +19,7 @@
 
 package org.screamingsandals.bedwars.game;
 
+import org.jetbrains.annotations.Nullable;
 import org.screamingsandals.bedwars.api.game.Game;
 
 import java.util.HashMap;
@@ -33,6 +34,7 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
     public Location bed;
     public Location spawn;
     public int maxPlayers;
+    public @Nullable String saveName;
     public Game game;
     public HashMap<UUID, Boolean> members;
 
@@ -53,6 +55,7 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
             }
         }
 
+        t.saveName = this.saveName;
         return t;
     }
 
@@ -97,5 +100,8 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
         }
 
         return members.containsKey(uuid);
+
+    public String getSaveName() {
+        return saveName != null ? saveName : name.replace('.', '_').replace(' ', '_');
     }
 }

@@ -24,6 +24,7 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.Waterlogged;
 import org.bukkit.entity.*;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
@@ -150,11 +151,11 @@ public class PlayerListener implements Listener {
                     if (gKiller.getGame() == game) {
                         if (!onlyOnBedDestroy || !isBed) {
                             game.dispatchRewardCommands("player-kill", killer,
-                                    Main.getConfigurator().config.getInt("statistics.scores.kill", 10));
+                                    Main.getConfigurator().config.getInt("statistics.scores.kill", 10), game.getPlayerTeam(gKiller), null, null);
                         }
                         if (!isBed) {
                             game.dispatchRewardCommands("player-final-kill", killer,
-                                    Main.getConfigurator().config.getInt("statistics.scores.final-kill", 0));
+                                    Main.getConfigurator().config.getInt("statistics.scores.final-kill", 0), game.getPlayerTeam(gKiller), null, null);
                         }
                         if (team.isDead()) {
                             SpawnEffects.spawnEffect(game, victim, "game-effects.teamkill");
@@ -221,6 +222,11 @@ public class PlayerListener implements Listener {
 
                     @Override
                     public void run() {
+                        if (!gamePlayer.isInGame()) {
+                            this.cancel();
+                            return;
+                        }
+
                         if (livingTime > 0) {
                             Title.send(player,
                                     i18nonly("respawn_cooldown_title").replace("%time%", String.valueOf(livingTime)), "");
@@ -1206,7 +1212,61 @@ public class PlayerListener implements Listener {
 
             Block block = loc.getBlock();
             if (game.getStatus() == GameStatus.RUNNING) {
-                if (block.getType() == Material.AIR || game.getRegion().isBlockAddedDuringGame(block.getLocation())) {
+                if (game.getRegion().isBlockAddedDuringGame(block.getLocation())) {
+                    return;
+                }
+
+                if (!Main.isLegacy() && event.getBucket() == Material.WATER_BUCKET && event.getBlockClicked().getBlockData() instanceof Waterlogged) {
+                    block = event.getBlockClicked();
+                    game.getRegion().putOriginalBlock(block.getLocation(), block.getState());
+                    game.getRegion().addBuiltDuringGame(block.getLocation());
+                } else if (block.getType() == Material.AIR) {
+                    game.getRegion().addBuiltDuringGame(block.getLocation());
+                } else {
+                    event.setCancelled(true);
+                }
+            } else if (game.getStatus() != GameStatus.DISABLED) {
+                event.setCancelled(true);
+            }
+        } else if (Main.getConfigurator().config.getBoolean("preventArenaFromGriefing")) {
+            for (String gameN : Main.getGameNames()) {
+                Game game = Main.getGame(gameN);
+                if (game.getStatus() != GameStatus.DISABLED && GameCreator.isInArea(event.getBlockClicked().getLocation(), game.getPos1(), game.getPos2())) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onBreakLiquid(PlayerBucketFillEvent event) {
+        if (event.isCancelled()) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        if (Main.isPlayerInGame(player)) {
+            GamePlayer gPlayer = Main.getPlayerGameProfile(player);
+            Game game = gPlayer.getGame();
+            Location loc = event.getBlockClicked().getLocation();
+
+            Block block = loc.getBlock();
+            if (game.getStatus() == GameStatus.RUNNING) {
+                if (game.getRegion().isBlockAddedDuringGame(block.getLocation())) {
+                    return;
+                }
+
+                if (
+                    Main.isBreakableBlock(block.getType())
+                    || (
+                        !Main.isLegacy()
+                        && event.getBucket() == Material.WATER_BUCKET
+                        && Main.isBreakableBlock(Material.valueOf("WATER")) // Require breakable water
+                        && block.getBlockData() instanceof Waterlogged
+                    )
+                ) {
+                    game.getRegion().putOriginalBlock(block.getLocation(), block.getState());
                     game.getRegion().addBuiltDuringGame(block.getLocation());
                 } else {
                     event.setCancelled(true);
@@ -1239,6 +1299,31 @@ public class PlayerListener implements Listener {
                     return;
                 }
             }
+        }
+    }
+
+    @EventHandler
+    public void onSpectatorTeleported(PlayerTeleportEvent event) {
+        if (event.isCancelled()) {
+            return;
+        }
+
+        if (event.getCause() != PlayerTeleportEvent.TeleportCause.SPECTATE) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (!Main.isPlayerInGame(player)) {
+            return;
+        }
+
+        GamePlayer gPlayer = Main.getPlayerGameProfile(player);
+
+        Game game = gPlayer.getGame();
+
+        if (!GameCreator.isInArea(event.getTo(), game.getPos1(), game.getPos2())) {
+            event.setCancelled(true);
         }
     }
 

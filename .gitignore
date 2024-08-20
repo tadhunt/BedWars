@@ -40,3 +40,5 @@ gradle-app.setting
 api/bin
 nms/bin
 plugin/bin
+
+.*.swp
