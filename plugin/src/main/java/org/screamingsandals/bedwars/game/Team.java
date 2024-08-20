@@ -100,6 +100,7 @@ public class Team implements Cloneable, org.screamingsandals.bedwars.api.Team {
         }
 
         return members.containsKey(uuid);
+    }
 
     public String getSaveName() {
         return saveName != null ? saveName : name.replace('.', '_').replace(' ', '_');
