@@ -1,19 +1,14 @@
 plugins {
-    id 'org.screamingsandals.plugin-builder' version '1.0.85' apply false
+    id 'org.screamingsandals.plugin-builder' version '1.0.87' apply false
     id 'me.kcra.takenaka.accessor' version '1.2.0' apply false
     id 'com.github.gmazzo.buildconfig' version '3.0.0' apply false
 }
 
 allprojects {
     group = 'org.screamingsandals.bedwars'
-    version = '0.2.34-mcpd-1'
 }
 
-if (version.toString().endsWith('-SNAPSHOT')) {
-    defaultTasks 'clean', 'screamCompile'
-} else {
-    defaultTasks 'clean', 'screamCompile', ':BedWars-API:allowJavadocUpload'
-}
+defaultTasks 'clean', 'screamCompile'
 
 subprojects {
     System.setProperty("JavadocUploadCustomDirectoryPath", "sbw-0-2-x")
@@ -55,4 +50,8 @@ subprojects {
     }
 
     sourceCompatibility = '1.8'
+    compileJava {
+        options.compilerArgs.add("-Xlint:-options")
+        options.release = 8
+    }
 }

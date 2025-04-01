@@ -1106,6 +1106,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                             ((Number) spawner.getOrDefault("startLevel", 1)).doubleValue(),
                             game.getTeamFromName((String) spawner.get("team")),
                             (int) spawner.getOrDefault("maxSpawnedResources", -1));
+                    if (sa.type == null) {
+                        sa.declaredSpawnerType = (String) spawner.get("type");
+                        Main.getInstance().getLogger().warning("There is an unknown spawner type " + sa.declaredSpawnerType + " defined in game " + game.name + " on location " + spawner.get("location"));
+                    }
                     game.spawners.add(sa);
                 }
             }
@@ -1335,7 +1339,7 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         for (ItemSpawner spawner : spawners) {
             Map<String, Object> spawnerMap = new HashMap<>();
             spawnerMap.put("location", MiscUtils.setLocationToString(spawner.loc));
-            spawnerMap.put("type", spawner.type.getConfigKey());
+            spawnerMap.put("type", spawner.type != null ? spawner.type.getConfigKey() : spawner.declaredSpawnerType);
             spawnerMap.put("customName", spawner.customName);
             spawnerMap.put("startLevel", spawner.startLevel);
             spawnerMap.put("hologramEnabled", spawner.hologramEnabled);
@@ -2051,6 +2055,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     }
 
                     for (ItemSpawner spawner : spawners) {
+                        if (spawner.type == null) {
+                            continue;
+                        }
+
                         spawner.countdownDelay = 0;
                         spawner.currentCycle = spawner.type.getInterval();
 
@@ -2062,6 +2070,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
 
                     if (getOriginalOrInheritedSpawnerHolograms()) {
                         for (ItemSpawner spawner : spawners) {
+                            if (spawner.type == null) {
+                                continue;
+                            }
+
                             CurrentTeam spawnerTeam = getCurrentTeamFromTeam(spawner.getTeam());
                             if (getOriginalOrInheritedStopTeamSpawnersOnDie() && spawner.getTeam() != null && spawnerTeam == null) {
                                 continue; // team of this spawner is not available. Fix #147
@@ -2369,6 +2381,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
                     }
                 } else if (countdown != gameTime /* Prevent spawning resources on game start */) {
                     for (ItemSpawner spawner : spawners) {
+                        if (spawner.type == null) {
+                            continue;
+                        }
+
                         CurrentTeam spawnerTeam = getCurrentTeamFromTeam(spawner.getTeam());
                         if (getOriginalOrInheritedStopTeamSpawnersOnDie() && spawner.getTeam() != null && spawnerTeam == null) {
                             continue; // team of this spawner is not available. Fix #147
@@ -2543,6 +2559,10 @@ public class Game implements org.screamingsandals.bedwars.api.game.Game {
         Main.getInstance().getServer().getPluginManager().callEvent(preRebuildingEvent);
 
         for (ItemSpawner spawner : spawners) {
+            if (spawner.type == null) {
+                continue;
+            }
+
             spawner.currentLevel = spawner.startLevel;
             spawner.spawnedItems.clear();
         }

@@ -174,7 +174,7 @@ public class GameCreator {
                         } else {
                             response = null;
                         }
-                    } else {
+                    } else if (args.length == 2) {
                         response = addSpawner(args[1], player.getLocation(), null, true, 1, null, -1);
                     }
                 } else if (args[0].equalsIgnoreCase("remove")) {
@@ -191,7 +191,7 @@ public class GameCreator {
                             if (args.length >= 4) {
                                 response = addStore(player.getLocation(), args[2], Boolean.parseBoolean(args[3]), args[1]);
                             } else {
-                                response = addStore(player.getLocation(), args[2], true, args[1]);
+                                response = addStore(player.getLocation(), args[2], false, args[1]);
                             }
                         } else {
                             response = addStore(player.getLocation(), null, true, args[1]);

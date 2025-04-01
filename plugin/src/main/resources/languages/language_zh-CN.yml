@@ -38,7 +38,7 @@ no_permissions: "&c您无权执行此操作."
 arena_must_be_in_edit_mode: "&c房间必须处于编辑模式！"
 arena_removed: "&c&l房间移除成功！"
 arena_added: "&a房间添加成功！"
-arena_switched_to_edit: "&c房间必须处于编辑模式！"
+arena_switched_to_edit: "&a房间已切换至编辑模式！"
 bed_is_destroyed: "%team% 队的床被摧毁！"
 target_is_destroyed: "%team% 队的目标方块被摧毁！"
 anchor_is_destroyed: "%team% 队的重生信标被摧毁！"
@@ -411,3 +411,5 @@ help_bw_cheat_kill: /bw cheat kill [player] - &c杀死玩家
 game_forced: '&a游戏将以空队伍开始。破坏他们的目标方块以胜利！'
 team_not_in_game: '&c队伍 &7%name%&c 不在游戏内!'
 cheat_received_target_block_destroy: '&a队伍 &7%name%&a 已被摧毁!'
+help_bw_cheat_startemptygame: '/bw cheat startemptygame 开始'
+door_is_destroyed: '%team%队的门&r 被摧毁了'
